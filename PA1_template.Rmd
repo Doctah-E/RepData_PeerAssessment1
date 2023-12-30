@@ -7,19 +7,100 @@ output:
 
 
 ## Loading and preprocessing the data
+```` {r}
+library(ggplot2)
+library(dplyr)
 
+data <- read.csv(unz("activity.zip", "activity.csv"), header = T)
+data$date <- as.Date(data$date)
 
+````
 
 ## What is mean total number of steps taken per day?
+```` {r}
+# sum steps for each date
+steps_daily <- tapply(data$steps, data$date, sum)
 
+# create histogram
+hist(steps_daily)
 
+# mean and median
+summary(steps_daily)
+
+````
 
 ## What is the average daily activity pattern?
+```` {r}
+# calculate average across intervals
+steps_int <- tapply(data$steps, data$interval, mean, na.rm = T)
 
+# plot it 
+ts.plot(steps_int, type = "l", xlab = "Interval")
 
+# which interval has most steps on av? 
+names(steps_int)[which.max(steps_int)]
+
+````
 
 ## Imputing missing values
+```` {r}
+# how many missings? 
+sum(is.na(data$steps))
+
+# fill in NA's with mean of interval and create new data frame
+data2 <- data
+data2$steps_m <- tapply(data2$steps, data2$interval, mean, na.rm = T)
+data2$steps_imp <- ifelse(is.na(data2$steps), data2$steps_m, data2$steps)
+sum(is.na(data2$steps_imp))
+
+# sum steps for each date
+steps_daily_imp <- tapply(data2$steps_imp, data2$date, sum)
+
+# create histogram
+hist(steps_daily_imp)
+
+# mean and median
+summary(steps_daily_imp)
+
+# compare with non-imputed data
+summary(steps_daily)          # mean and medium are same
+
+# impact total daily number of steps: more total steps, no missings
+sum(steps_daily, na.rm = T)
+sum(steps_daily_imp, na.rm = T)
 
 
+````
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```` {r}
+# create variable weekday or weekend
+data2$day <- weekdays(data2$date)
+data2$wknd <- ifelse(data2$day %in% c("zaterdag", "zondag"), "weekend", "weekday")
+data2$wknd <- as.factor(data2$wknd)
+
+# plot weekday versus weekend
+steps_daily_imp_week <- tapply(data2$steps_imp[data2$wknd =="weekday"],
+                               data2$date[data2$wknd =="weekday"], mean)
+head(steps_daily_imp_week)
+steps_daily_imp_weekend <- tapply(data2$steps_imp[data2$wknd =="weekend"],
+                                  data2$date[data2$wknd =="weekend"], mean)
+
+# using ggplot
+g <- data2 %>% select(steps_imp, interval, wknd) %>% 
+    group_by(interval, wknd) %>% 
+    mutate(mean_steps_imp = mean(steps_imp, na.rm = T)) %>% 
+    ungroup %>% 
+    ggplot(., aes(interval, mean_steps_imp)) + 
+    facet_wrap(~ wknd, ncol = 1) +
+    geom_line(color = "blue") +
+    ylab("Number of steps") +
+    theme_classic()
+g
+
+
+````
+
+
+
+
